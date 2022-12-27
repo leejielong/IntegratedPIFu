@@ -33,11 +33,11 @@ if angle>=360:
 light_energy = 0.5e+02  
 RESOLUTION = 1024 
 
-BUFFER_PATH =  "buffer_fixed_full_mesh" # is the output folder
+BUFFER_PATH =  "rendering_script/buffer_fixed_full_mesh" # is the output folder
 image_filename = "rendered_image"
 mask_filename =  "rendered_mask"
 
-shape_file = os.path.join( 'THuman2.0_Release' ,subject , subject + ".obj")
+shape_file = os.path.join( 'rendering_script/THuman2.0_Release' ,subject , subject + ".obj")
 
 
 save_folder_path = os.path.join(curpath, BUFFER_PATH, subject)
@@ -117,28 +117,28 @@ def load_obj_mesh(mesh_file, with_normal=False, with_texture=False):
     vertices = np.array(vertex_data)
     faces = np.array(face_data) - 1
 
-    if with_texture and with_normal:
-        uvs = np.array(uv_data)
-        face_uvs = np.array(face_uv_data) - 1
-        norms = np.array(norm_data)
-        if norms.shape[0] == 0:
-            norms = compute_normal(vertices, faces)
-            face_normals = faces
-        else:
-            norms = normalize_v3(norms)
-            face_normals = np.array(face_norm_data) - 1
-        return vertices, faces, norms, face_normals, uvs, face_uvs
+    # if with_texture and with_normal:
+    #     uvs = np.array(uv_data)
+    #     face_uvs = np.array(face_uv_data) - 1
+    #     norms = np.array(norm_data)
+    #     if norms.shape[0] == 0:
+    #         norms = compute_normal(vertices, faces)
+    #         face_normals = faces
+    #     else:
+    #         norms = normalize_v3(norms)
+    #         face_normals = np.array(face_norm_data) - 1
+    #     return vertices, faces, norms, face_normals, uvs, face_uvs
 
-    if with_texture:
-        uvs = np.array(uv_data)
-        face_uvs = np.array(face_uv_data) - 1
-        return vertices, faces, uvs, face_uvs
+    # if with_texture:
+    #     uvs = np.array(uv_data)
+    #     face_uvs = np.array(face_uv_data) - 1
+    #     return vertices, faces, uvs, face_uvs
 
-    if with_normal:
-        norms = np.array(norm_data)
-        norms = normalize_v3(norms)
-        face_normals = np.array(face_norm_data) - 1
-        return vertices, faces, norms, face_normals
+    # if with_normal:
+    #     norms = np.array(norm_data)
+    #     norms = normalize_v3(norms)
+    #     face_normals = np.array(face_norm_data) - 1
+    #     return vertices, faces, norms, face_normals
 
     return vertices, faces
 

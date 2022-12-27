@@ -1,8 +1,7 @@
 
-
-
 import os
 import random
+from tqdm import tqdm
 
 import numpy as np 
 from PIL import Image, ImageOps
@@ -25,8 +24,9 @@ def load_trimesh(root_dir, training_subject_list = None):
 
 
     folders = os.listdir(root_dir)
+
     meshs = {}
-    for i, f in enumerate(folders):
+    for i, f in tqdm(enumerate(folders)):
         if f == ".DS_Store":
             continue
 
