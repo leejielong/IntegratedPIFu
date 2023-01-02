@@ -40,7 +40,7 @@ test_script_activate_option_use_BUFF_dataset = False # will only work if test_sc
 
 
 # Whether to load model weights
-load_model_weights = True
+load_model_weights = False
 load_model_weights_for_high_res_too = False
 load_model_weights_for_low_res_finetuning_config = 0 # 0 == No Load weights; 1 == Load, load optimizerG weights; 2 == Load, load optimizer_lowResFineTune weights
 checkpoint_folder_to_load_low_res = 'apps/checkpoints/Date_15_Jul_22_Time_10_51_45' # Date_15_Jul_22_Time_10_51_45 is folder to load
@@ -105,6 +105,7 @@ def adjust_learning_rate(optimizer, epoch, lr, schedule, learning_rate_decay):
 
 
 def gen_mesh(resolution, net, device, data, save_path, thresh=0.5, use_octree=True):
+    """Generate mesh from SDF"""
     
     calib_tensor = data['calib'].to(device=device)
     calib_tensor = torch.unsqueeze(calib_tensor,0)
@@ -246,26 +247,26 @@ def gen_mesh(resolution, net, device, data, save_path, thresh=0.5, use_octree=Tr
 
 
 
-
+# Train model
 def train(opt):
     global gen_test_counter
     currently_epoch_to_update_low_res_pifu = True
 
-
+    # config cuda
     if torch.cuda.is_available():
         # set cuda
         device = 'cuda:0'
-
     else:
         device = 'cpu'
-
     print("using device {}".format(device) )
 
+    # debug mode
     if debug_mode:
         opt.debug_mode = True
     else:
         opt.debug_mode = False
     
+    # select test dataset
     if test_script_activate:
         if test_script_activate_option_use_BUFF_dataset:
             from lib.data.BuffDataset import BuffDataset
@@ -277,43 +278,44 @@ def train(opt):
     
     projection_mode = train_dataset.projection_mode
 
-    if debug_mode:
-        train_dataset.normal_directory_high_res = "/mnt/lustre/kennard.chan/specialized_pifuhd/trained_normal_maps"
+    if debug_mode: # debug uses predicted maps instead of gt
+        train_dataset.normal_directory_high_res = "rendering_script/buffer_normal_maps_of_full_mesh"
         train_dataset.depth_map_directory = "/mnt/lustre/kennard.chan/specialized_pifuhd/trained_refined_depth_maps_usingNormalOnly"
         train_dataset.human_parse_map_directory = "/mnt/lustre/kennard.chan/specialized_pifuhd/trained_parse_maps"
 
-
+    # create dataloader
     train_data_loader = DataLoader(train_dataset, 
                                    batch_size=opt.batch_size, shuffle=not opt.serial_batches,
                                    num_workers=opt.num_threads, pin_memory=opt.pin_memory)
-
-
     print('train loader size: ', len(train_data_loader))
 
+    # data check
+    # iter_dataloader = iter(train_data_loader)
+    # for data in tqdm(iter_dataloader):
+    #     pass
+    # print(f"data check complete")
+    # assert False
 
     if opt.useValidationSet:
         validation_dataset = TrainDataset(opt, projection='orthogonal', phase = 'validation', evaluation_mode=False, validation_mode=True)
-
         validation_epoch_cd_dist_list = []
         validation_epoch_p2s_dist_list = []
-
         validation_graph_path = os.path.join(opt.results_path, opt.name, 'ValidationError_Graph.png')
 
-    if debug_mode:
-        validation_dataset.normal_directory_high_res = "/mnt/lustre/kennard.chan/specialized_pifuhd/trained_normal_maps"
-        validation_dataset.depth_map_directory = "/mnt/lustre/kennard.chan/specialized_pifuhd/trained_refined_depth_maps_usingNormalOnly"
-        validation_dataset.human_parse_map_directory = "/mnt/lustre/kennard.chan/specialized_pifuhd/trained_parse_maps"
 
-    
+        if debug_mode:
+            validation_dataset.normal_directory_high_res = "rendering_script/buffer_normal_maps_of_full_mesh"
+            validation_dataset.depth_map_directory = "/mnt/lustre/kennard.chan/specialized_pifuhd/trained_refined_depth_maps_usingNormalOnly"
+            validation_dataset.human_parse_map_directory = "/mnt/lustre/kennard.chan/specialized_pifuhd/trained_parse_maps"
+
+    # initialize low res PIFU model as netG
     netG = HGPIFuNetwNML(opt, projection_mode, use_High_Res_Component = False)
 
+    # initialize high res PIFU model as highRes_netG
     if opt.use_High_Res_Component:
         highRes_netG = HGPIFuNetwNML(opt, projection_mode, use_High_Res_Component = True)
 
-
-
-
-
+    # Create save directories
     if (not os.path.exists(opt.checkpoints_path) ):
         os.makedirs(opt.checkpoints_path)
     if (not os.path.exists(opt.results_path) ):
@@ -323,10 +325,11 @@ def train(opt):
     if (not os.path.exists('%s/%s' % (opt.results_path, opt.name)) ):
         os.makedirs('%s/%s' % (opt.results_path, opt.name))
 
-
+    # print experiment name
     print('opt.name:', opt.name)
 
 
+    # load pretrained weights
     if load_model_weights:
 
         # load weights for low-res model
@@ -361,9 +364,8 @@ def train(opt):
             highRes_netG.load_state_dict( highResG_state_dict , strict = True )
             
 
-        
+    # testing script
     if test_script_activate:
-        # testing script
         with torch.no_grad():
 
             print('generate mesh (test) ...')
@@ -400,28 +402,17 @@ def train(opt):
         return
         
          
-       
-        
-    
-    
-    
-
-
-
+    # logging
     opt_log = os.path.join(opt.results_path, opt.name, 'opt.txt')
     with open(opt_log, 'w') as outfile:
         outfile.write(json.dumps(vars(opt), indent=2))
 
-
-
-
-
+    # prepare low res PIFu
     netG = netG.to(device=device)
     lr_G = opt.learning_rate_G
     optimizerG = torch.optim.RMSprop(netG.parameters(), lr=lr_G, momentum=0, weight_decay=0)
 
 
-    
     # load saved weights for optimizerG
     if load_model_weights:
         # load saved weights for optimizerG
@@ -431,8 +422,8 @@ def train(opt):
         optimizerG.load_state_dict( optimizerG_state_dict )
 
     
-
     if opt.use_High_Res_Component:
+        # load high res PIFu with its own optimizer
         highRes_netG = highRes_netG.to(device=device)
         lr_highRes = opt.learning_rate_MR
         optimizer_highRes = torch.optim.RMSprop(highRes_netG.parameters(), lr=lr_highRes, momentum=0, weight_decay=0)
@@ -466,19 +457,14 @@ def train(opt):
                 
 
 
-        
-
+    # Start training
     start_epoch = 0
     for epoch in range(start_epoch, opt.num_epoch):
-
-
-
         print("start of epoch {}".format(epoch) )
-
 
         netG.train()
         if opt.use_High_Res_Component:
-            if opt.update_low_res_pifu:
+            if opt.update_low_res_pifu: # LR PIfu is frozen at start and end
                 if (epoch < opt.epoch_to_start_update_low_res_pifu):
                     currently_epoch_to_update_low_res_pifu = False 
                     print("currently_epoch_to_update_low_res_pifu remains at False for this epoch")
@@ -492,16 +478,13 @@ def train(opt):
                     pass
 
 
-
+            # When updating LR PIFu, HR PIFu is frozen, and vice versa
             if opt.update_low_res_pifu and currently_epoch_to_update_low_res_pifu:
                 netG.train()
                 highRes_netG.eval()
             else:
                 netG.eval()
                 highRes_netG.train()
-
-
-
 
 
         train_len = len(train_data_loader)
@@ -511,7 +494,7 @@ def train(opt):
             # retrieve the data
             calib_tensor = train_data['calib'].to(device=device) # the calibration matrices for the renders ( is np.matmul(intrinsic, extrinsic)  ). Shape of [Batchsize, 4, 4]
 
-
+            # load input data (image,normalF,normalB)
             if opt.use_High_Res_Component:
                 render_low_pifu_tensor = train_data['render_low_pifu'].to(device=device) 
                 render_pifu_tensor = train_data['original_high_res_render'].to(device=device)  # the renders. Shape of [Batch_size, Channels, Height, Width]
@@ -543,7 +526,7 @@ def train(opt):
                     nmlB_tensor = None
 
 
-
+            # load input data (depth map)
             if opt.use_depth_map:
                 current_depth_map = train_data['depth_map'].to(device=device)
                 if opt.depth_in_front and (not opt.use_High_Res_Component) :
@@ -556,23 +539,24 @@ def train(opt):
                 current_depth_map = None
                 current_low_depth_map = None
 
-
+            # load input data (hpm)
             if opt.use_human_parse_maps:
                 human_parse_map = train_data['human_parse_map'].to(device=device)
             else:
                 human_parse_map = None
 
 
- 
+            # load 3d query samples & labels
             samples_low_res_pifu_tensor = train_data['samples_low_res_pifu'].to(device=device)  # contain inside and outside points. Shape of [Batch_size, 3, num_of_points]
             labels_low_res_pifu_tensor = train_data['labels_low_res_pifu'].to(device=device)  # tell us which points in sample_tensor are inside and outside in the surface. Should have shape of [Batch_size ,1, num_of_points]
 
 
-            if opt.use_High_Res_Component:
+            if opt.use_High_Res_Component: # HR PIFu pass
+                # LR PIFU forward pass
                 netG.filter( render_low_pifu_tensor, nmlF=nmlF_low_tensor, nmlB = nmlB_low_tensor, current_depth_map = current_low_depth_map, human_parse_map=human_parse_map ) # forward-pass using only the low-resolution PiFU
-                netG_output_map = netG.get_im_feat() # should have shape of [B, 256, H, W]
+                netG_output_map = netG.get_im_feat() # should have shape of [B, 256, H, W] #low res feature map
 
-
+                # HR PIFu forward pass
                 error_high_pifu, res_high_pifu = highRes_netG.forward(images=render_pifu_tensor, points=samples_low_res_pifu_tensor, calibs=calib_tensor, labels=labels_low_res_pifu_tensor,  points_nml=None, labels_nml=None, nmlF = nmlF_tensor, nmlB = nmlB_tensor, current_depth_map = current_depth_map, netG_output_map=netG_output_map)
                 if opt.update_low_res_pifu and currently_epoch_to_update_low_res_pifu:
                     optimizer_lowResFineTune.zero_grad()
@@ -592,7 +576,8 @@ def train(opt):
 
                 r = res_high_pifu
 
-            else:
+            else: # LR PIFu pass
+                # get loss and predicted values
                 error_low_res_pifu, res_low_res_pifu = netG.forward(images=render_pifu_tensor, points=samples_low_res_pifu_tensor, calibs=calib_tensor, labels=labels_low_res_pifu_tensor,  points_nml=None, labels_nml=None, nmlF = nmlF_tensor, nmlB = nmlB_tensor, current_depth_map = current_depth_map, human_parse_map=human_parse_map)
                 optimizerG.zero_grad()
                 error_low_res_pifu['Err(occ)'].backward()
@@ -608,11 +593,7 @@ def train(opt):
 
 
 
-
-
-                
-
-
+        # End of epoch lr adjustment
         lr_G = adjust_learning_rate(optimizerG, epoch, lr_G, opt.schedule, opt.learning_rate_decay)
         if opt.use_High_Res_Component:
             if opt.update_low_res_pifu and currently_epoch_to_update_low_res_pifu:
@@ -621,55 +602,54 @@ def train(opt):
                 lr_highRes = adjust_learning_rate(optimizer_highRes, epoch, lr_highRes, opt.schedule, opt.learning_rate_decay)
  
 
-
+        # End of epoch evaluation
         with torch.no_grad():
-
             if True:
 
-                # save as pickle:
+                # save netG state
                 with open( '%s/%s/netG_model_state_dict_epoch%s.pickle' % (opt.checkpoints_path, opt.name, str(epoch) ) , 'wb') as handle:
                     pickle.dump(netG.state_dict(), handle, protocol=pickle.HIGHEST_PROTOCOL)
-
+                # save optimizerG state
                 with open( '%s/%s/optimizerG_epoch%s.pickle' % (opt.checkpoints_path, opt.name, str(epoch)) , 'wb') as handle:
                     pickle.dump(optimizerG.state_dict(), handle, protocol=pickle.HIGHEST_PROTOCOL)
 
                 if opt.use_High_Res_Component:
-
+                    # save highRes_netG state
                     with open( '%s/%s/highRes_netG_model_state_dict_epoch%s.pickle' % (opt.checkpoints_path, opt.name, str(epoch) ) , 'wb') as handle:
                         pickle.dump(highRes_netG.state_dict(), handle, protocol=pickle.HIGHEST_PROTOCOL)
-
+                    # save optimizer_highRes state
                     with open( '%s/%s/optimizer_highRes_epoch%s.pickle' % (opt.checkpoints_path, opt.name, str(epoch) ) , 'wb') as handle:
                         pickle.dump(optimizer_highRes.state_dict(), handle, protocol=pickle.HIGHEST_PROTOCOL)
-                    
+                    # save lrPIFU finetune optimizer state
                     if opt.update_low_res_pifu:
                         with open( '%s/%s/optimizer_lowResFineTune_epoch%s.pickle' % (opt.checkpoints_path, opt.name,str(epoch) ) , 'wb') as handle:
                             pickle.dump(optimizer_lowResFineTune.state_dict(), handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-
                     highRes_netG.eval()
 
 
-
+                # Generate mesh
                 print('generate mesh (train) ...')
                 train_dataset.is_train = False
                 netG.eval()
-                for gen_idx in tqdm(range(1)):
+                for gen_idx in tqdm(range(1)): # build 1 example
 
                     index_to_use = gen_test_counter % len(train_dataset)
+                    print(f"index to use: {index_to_use}")
                     gen_test_counter += 10 # 10 is the number of images for each class
                     train_data = train_dataset.get_item(index=index_to_use) 
                     # train_data["img"].shape  has shape of [1, 3, 512, 512]
                     save_path = '%s/%s/train_eval_epoch%d_%s.obj' % (
                         opt.results_path, opt.name, epoch, train_data['name'])
 
-
+                    # build mesh with marching cubes and save as obj file
                     if opt.use_High_Res_Component:
                         gen_mesh(resolution=opt.resolution, net=[netG, highRes_netG] , device = device, data = train_data, save_path = save_path)
                     else:
                         gen_mesh(resolution=opt.resolution, net=netG , device = device, data = train_data, save_path = save_path)
 
 
-                try:
+                try: #build point cloud
                     # save visualization of model performance
                     save_path = '%s/%s/pred.ply' % (opt.results_path, opt.name)
                     r = r[0].cpu() # get only the first example in the batch (i.e. 1 CAD model or subject). [1, Num of sampled points]
@@ -681,7 +661,7 @@ def train(opt):
 
                 train_dataset.is_train = True
 
-
+            # validation script (1 per epoch) - computes CD and P2S distances
             if opt.useValidationSet:
                 import trimesh
                 from evaluate_model import quick_get_chamfer_and_surface_dist
@@ -763,14 +743,14 @@ def train(opt):
 
 
 
-
-
-        plt.plot( np.arange(epoch+1) , np.array(validation_epoch_cd_dist_list) )
-        plt.plot( np.arange(epoch+1) , np.array(validation_epoch_p2s_dist_list), '-.' )
-        plt.xlabel('Epoch')
-        plt.ylabel('Validation Error (CD + P2D)')
-        plt.title('Epoch Against Validation Error (CD + P2D)')
-        plt.savefig(validation_graph_path)
+        if opt.useValidationSet:
+            # plot and save CD & P2S scores over training regime
+            plt.plot( np.arange(epoch+1) , np.array(validation_epoch_cd_dist_list) )
+            plt.plot( np.arange(epoch+1) , np.array(validation_epoch_p2s_dist_list), '-.' )
+            plt.xlabel('Epoch')
+            plt.ylabel('Validation Error (CD + P2D)')
+            plt.title('Epoch Against Validation Error (CD + P2D)')
+            plt.savefig(validation_graph_path)
 
 
 

@@ -139,7 +139,7 @@ class DepthDataset(Dataset):
         depth_map = depth_map[:,:,0]
         mask_depth = depth_map > 100
 
-        depth_map = depth_map - CAMERA_TO_MESH_DISTANCE # make the center pixel to have a depth value of 0.0
+        depth_map = depth_map - CAMERA_TO_MESH_DISTANCE # make the center pixel to have a depth value of 0.0 # same cam-mesh distance for every example.
         depth_map = depth_map / (b_range/self.opt.resolution  ) # converts the units into in terms of no. of bounding cubes
         depth_map = depth_map / (self.opt.resolution/2) # normalize into range of [-1,1]
 

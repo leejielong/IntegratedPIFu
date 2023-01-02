@@ -10,11 +10,11 @@ class BaseOptions():
 
     def initialize(self, parser):
 
-        parser.add_argument('--useValidationSet', default=True)
+        parser.add_argument('--useValidationSet', default=False)
 
 
         # start option check
-        parser.add_argument('--useDOS', default=True, help='depth oriented sampling')
+        parser.add_argument('--useDOS', default=False, help='depth oriented sampling')
         parser.add_argument('--use_mask_for_rendering_high_res',default=True) 
         parser.add_argument('--use_mask_for_rendering_low_res',default=False) # Not used in the paper.
 
@@ -27,33 +27,33 @@ class BaseOptions():
 
 
         # high res component
-        parser.add_argument('--use_High_Res_Component', default=True) 
+        parser.add_argument('--use_High_Res_Component', default=False) 
         parser.add_argument('--High_Res_Component_sigma', default=2.0)
 
-        parser.add_argument('--use_human_parse_maps', default=True) 
+        parser.add_argument('--use_human_parse_maps', default=False) 
         parser.add_argument('--use_groundtruth_human_parse_maps', default=False)
 
         # depth usage in low res PIFU models 
-        parser.add_argument('--use_depth_map', default=True)
+        parser.add_argument('--use_depth_map', default=False)
         parser.add_argument('--depth_in_front', default=True) # Used in the paper.
         parser.add_argument('--useGTdepthmap',default=False)
 
 
         # depth filter training
-        parser.add_argument('--use_normal_map_for_depth_training', default=True)
+        parser.add_argument('--use_normal_map_for_depth_training', default=False)
         parser.add_argument('--second_stage_depth', default=False)
 
         # parse filter training
-        parser.add_argument('--use_normal_map_for_parse_training', default=True)
+        parser.add_argument('--use_normal_map_for_parse_training', default=False)
 
         
         parser.add_argument('--num_sample_inout', type=int, default=16000, help='# of sampling points')
-        #parser.add_argument('--num_sample_inout', type=int, default=8000, help='# of sampling points')
+        # parser.add_argument('--num_sample_inout', type=int, default=8000, help='# of sampling points')
 
         parser.add_argument('--sigma_low_resolution_pifu', type=float, default=3.5, help='sigma for sampling')
         parser.add_argument('--sigma_high_resolution_pifu', type=float, default=2.0, help='sigma for sampling') 
 
-        parser.add_argument('--use_front_normal', default=True)
+        parser.add_argument('--use_front_normal', default=False)
         parser.add_argument('--use_back_normal', default=False)
 
 
@@ -67,7 +67,7 @@ class BaseOptions():
 
         parser.add_argument('--resolution', type=int, default=256, help='# of grid in mesh reconstruction')
 
-        parser.add_argument('--num_threads', default=2, type=int, help='# sthreads for loading data')
+        parser.add_argument('--num_threads', default=0, type=int, help='# sthreads for loading data')
 
 
 
@@ -84,7 +84,7 @@ class BaseOptions():
 
         parser.add_argument('--no_first_down_sampling', default=False) # set to True to remove the downsampling
 
-        parser.add_argument('--use_groundtruth_normal_maps', default=False) # for training the dif PIFU models
+        parser.add_argument('--use_groundtruth_normal_maps', default=True) # for training the dif PIFU models
 
         
         parser.add_argument('--schedule', type=int, nargs='+', default=[90000, 90001, 90002],

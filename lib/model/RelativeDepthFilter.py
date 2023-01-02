@@ -39,14 +39,14 @@ class RelativeDepthFilter(nn.Module):
 
         self.opt = opt
 
-        if not self.opt.second_stage_depth:
+        if not self.opt.second_stage_depth: #single stage
             from .UNet import UNet
             n_channels = 4
             if self.opt.use_normal_map_for_depth_training:
                 n_channels = n_channels + 3
 
-            self.image_filter = UNet(n_channels=n_channels, n_classes=1, bilinear=False, last_op=translated_Tanh(), split_image_in_conv=self.opt.split_image_in_conv )
-        elif self.opt.second_stage_depth:
+            self.image_filter = UNet(n_channels=n_channels, n_classes=1, bilinear=False, last_op=translated_Tanh()) #, split_image_in_conv=self.opt.split_image_in_conv )
+        elif self.opt.second_stage_depth: # two stage
             n_channels = 4
             if self.opt.use_normal_map_for_depth_training:
                 n_channels = n_channels + 3
@@ -88,7 +88,7 @@ class RelativeDepthFilter(nn.Module):
 
 
     def generate_depth_map(self):
-
+        return self.im_feat_list
         return get_im_feat()
 
 

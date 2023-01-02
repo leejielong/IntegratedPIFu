@@ -36,7 +36,7 @@ gen_test_counter = 0
 lr = 1e-3 
 depth_schedule = [50] # epoch at which to reduce the lr
 num_of_epoch = 70
-batch_size = 4
+batch_size = 2
 load_model = False # If True, need modify 'modeldepthfilter_path' variable
 
 
@@ -141,6 +141,19 @@ def train(opt):
         train_len = len(train_data_loader)
         for train_idx, train_data in enumerate(train_data_loader):
             print("batch {}".format(train_idx) )
+            if train_idx == 10:
+                break
+
+            # print(train_data.keys())
+            # print(train_data['render_path'])
+            # print(train_data['render_low_pifu'].shape)
+            # print(train_data['mask_low_pifu'].shape)
+            # print(train_data['original_high_res_render'].shape)
+            # print(train_data['center_indicator'].shape)
+            # print(train_data['depth_map'].shape)
+            # print(train_data['nmlF_high_res'])
+            # print(train_data['mask'].shape)
+            # assert False
 
             # retrieve the data
             if opt.second_stage_depth:
@@ -157,7 +170,7 @@ def train(opt):
 
 
 
-            else:
+            else: # single stage depth estimator
                 render_tensor = train_data['original_high_res_render'].to(device=device)  # the renders. Shape of [Batch_size, Channels, Height, Width]
                 depth_map_tensor = train_data['depth_map'].to(device=device)   # shape of [batch, 1,1024,1024]
                 center_indicator_tensor = train_data['center_indicator'].to(device=device)  #  shape of [batch, 1,1024,1024]

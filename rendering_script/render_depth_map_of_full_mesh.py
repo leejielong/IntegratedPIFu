@@ -35,10 +35,10 @@ light_energy = 0.5e+02
 
 RESOLUTION = 1024  
 
-BUFFER_PATH =  "buffer_depth_maps_of_full_mesh" # is the output folder
+BUFFER_PATH =  "rendering_script/buffer_depth_maps_of_full_mesh" # is the output folder
 depth_map_filename = "rendered_depthmap"
 
-shape_file = os.path.join( 'THuman2.0_Release' ,subject , subject + ".obj")
+shape_file = os.path.join( 'rendering_script/THuman2.0_Release' ,subject , subject + ".obj")
 
 save_folder_path = os.path.join(curpath, BUFFER_PATH, subject)
 if not os.path.exists( save_folder_path ):

@@ -37,11 +37,11 @@ light_energy = 0.5e+02
 
 RESOLUTION = 1024  
 
-BUFFER_PATH =  "buffer_normal_maps_of_full_mesh" # is the output folder
+BUFFER_PATH =  "rendering_script/buffer_normal_maps_of_full_mesh" # is the output folder
 front_normal_map_filename = "rendered_nmlF"
 back_normal_map_filename = "rendered_nmlB"
 
-shape_file = os.path.join( 'THuman2.0_Release' ,subject , subject + ".obj")
+shape_file = os.path.join( 'rendering_script/THuman2.0_Release' ,subject , subject + ".obj")
 
 save_folder_path = os.path.join(curpath, BUFFER_PATH, subject)
 if not os.path.exists( save_folder_path ):
